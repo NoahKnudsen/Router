@@ -5,16 +5,13 @@ import PlaygroundSupport
 
 enum Route {
     case home
-    case someNested(NestedRoute)
-    case optionalParam(Int?)
-    case queryParam(theme: Theme?)
+    case article(id: Int, theme: Theme?)
+    case discover(DiscoverRoute)
     
-    enum NestedRoute {
-        case someInt(id: Int)
-        case someString(name: String)
-        case someUUID(UUID)
-        case twoParams(String, Int)
-        case threeParams(String, Int, Bool?)
+    enum DiscoverRoute {
+        case programme(id: UUID)
+        case series(name: String)
+        case other(String, Int, Bool?)
     }
     
     enum Theme: String {
@@ -25,7 +22,7 @@ enum Route {
 
 // MARK :- Isos
 // Boilerplate code to handle isomorphisms between Routes and their associated values
-// Can be generated eventually
+// Can be code generated
 
 extension Route {
     enum Iso {
@@ -37,61 +34,39 @@ extension Route {
             }
         )
         
-        static let someInt = PartialIso(
-            apply: { Route.someNested(.someInt(id: $0)) },
+        static let article = PartialIso<(Int, Theme?), Route>(
+            apply: { .article(id: $0.0, theme: $0.1) },
             unapply: { route in
-                guard case let .someNested(.someInt(result)) = route else { return nil }
+                guard case let .article(result) = route else { return nil }
                 return result
             }
         )
         
-        static let someString = PartialIso(
-            apply: { Route.someNested(.someString(name: $0)) },
-            unapply: { route in
-                guard case let .someNested(.someString(result)) = route else { return nil }
-                return result
-            }
-        )
-        
-        static let someUUID = PartialIso(
-            apply: { Route.someNested(.someUUID($0)) },
-            unapply: { route in
-                guard case let .someNested(.someUUID(result)) = route else { return nil }
-                return result
-            }
-        )
-        
-        static let optionalParam = PartialIso(
-            apply: Route.optionalParam,
-            unapply: { route in
-                guard case let .optionalParam(result) = route else { return nil }
-                return result
-            }
-        )
-        
-        static let queryParam = PartialIso(
-            apply: Route.queryParam,
-            unapply: { route in
-                guard case let .queryParam(result) = route else { return nil }
-                return result
-            }
-        )
-        
-        static let twoParams = PartialIso<(String, Int), Route>(
-            apply: { Route.someNested(.twoParams($0.0, $0.1)) },
-            unapply: { route in
-                guard case let .someNested(.twoParams(result)) = route else { return nil }
-                return result
-            }
-        )
-        
-        static let threeParams = PartialIso<(String, Int, Bool?), Route>(
-            apply: { Route.someNested(.threeParams($0.0, $0.1, $0.2)) },
-            unapply: { route in
-                guard case let .someNested(.threeParams(result)) = route else { return nil }
-                return result
-            }
-        )
+        enum Discover {
+            static let programme = PartialIso(
+                apply: { Route.discover(.programme(id: $0)) },
+                unapply: { route in
+                    guard case let .discover(.programme(result)) = route else { return nil }
+                    return result
+                }
+            )
+            
+            static let series = PartialIso(
+                apply: { Route.discover(.series(name: $0)) },
+                unapply: { route in
+                    guard case let .discover(.series(result)) = route else { return nil }
+                    return result
+                }
+            )
+            
+            static let other = PartialIso<(String, Int, Bool?), Route>(
+                apply: { .discover(.other($0.0, $0.1, $0.2)) },
+                unapply: { route in
+                    guard case let .discover(.other(result)) = route else { return nil }
+                    return result
+                }
+            )
+        }
     }
 }
 
@@ -99,75 +74,45 @@ extension Route {
 
 extension Route {
     private static let parsers = [
-        // case .home
         Route.Iso.home
             |* scheme("myapp")
             |+ host("goto")
             |+ path("home")
-            +| end,
+             +| end,
         
-        // case .programme(id:)
-        Route.Iso.someInt
+        Route.Iso.article
             |* scheme("myapp")
             |+ host("goto")
-            |+ path("nested")
-            |+ path("int")
+            |+ path("article")
             |+ path(.int)
-            +| end,
+            |+| query("theme", optional(Theme.iso))
+             +| end,
         
-        // case .series(name:)
-        Route.Iso.someString
+        Route.Iso.Discover.programme
             |* scheme("myapp")
             |+ host("goto")
-            |+ path("nested")
-            |+ path("string")
-            |+ path(.string)
-            +| end,
-        
-        Route.Iso.someUUID
-            |* scheme("myapp")
-            |+ host("goto")
-            |+ path("nested")
-            |+ path("uuid")
+            |+ path("discover")
+            |+ path("programme")
             |+ path(.uuid)
-            +| end,
+             +| end,
         
-        // case .optionalParam(Int?)
-        Route.Iso.optionalParam
+        Route.Iso.Discover.series
             |* scheme("myapp")
             |+ host("goto")
-            |+ path("optionalInt")
-            |+ path(optional(.int))
-            +| end,
-        
-        // case .queryParam(Theme?)
-        Route.Iso.queryParam
-            |* scheme("myapp")
-            |+ host("goto")
-            |+ path("queryParam")
-            |+ query("theme", optional(Theme.iso))
-            +| end,
-        
-        // case .twoParams(String, Int):
-        Route.Iso.twoParams
-            |* scheme("myapp")
-            |+ host("goto")
-            |+ path("nested")
-            |+ path("twoParams")
+            |+ path("discover")
+            |+ path("series")
             |+ path(.string)
-            |+| path(.int)
-            +| end,
+             +| end,
         
-        // case .threeParams(String, Int, Theme):
-        Route.Iso.threeParams
+        Route.Iso.Discover.other
             |* scheme("myapp")
             |+ host("goto")
-            |+ path("nested")
-            |+ path("threeParams")
+            |+ path("discover")
+            |+ path("other")
             |+ path(.string)
             |+| path(.int)
             |+| query("test", optional(.bool))
-            +| end
+             +| end
     ]
 }
 
@@ -190,21 +135,17 @@ extension Route {
 }
 
 // MARK :- Examples: Valid Routes
-print( "🦍", Route.match("myapp://goto/home")! as Any )                                         // Basic example
-print( "🦕", Route.match("myapp://goto/nested/int/123")! as Any )                               // Int path parameter
-print( "🦅", Route.match("myapp://goto/nested/string/hello-world")! as Any )                    // String path parameter
-print( "🦅", Route.match("myapp://goto/nested/uuid/\(UUID())")! as Any )                        // UUID path parameter
-print( "🦑", Route.match("myapp://goto/nested/twoParams/hello-world/123")! as Any )             // Two parameters: string & int
-print( "🐙", Route.match("myapp://goto/nested/threeParams/hello-world/123?test=true")! as Any ) // Three parameters: string & int & qs bool
-print( "🐋", Route.match("myapp://goto/optionalInt/16")! as Any )                               // Optional Int path parameter
-print( "🐊", Route.match("myapp://goto/queryParam?theme=vip")! as Any )                         // Query String queryparameter
+print( "🦍", Route.match("myapp://goto/home")! )                           // Basic example
+print( "🦕", Route.match("myapp://goto/article/123?theme=vip")! )          // Int path parameter + optional query string
+print( "🦅", Route.match("myapp://goto/discover/programme/\(UUID())")! )   // UUID path parameter
+print( "🐋", Route.match("myapp://goto/discover/series/the-sinner)")! )    // String path parameter
+print( "🐙", Route.match("myapp://goto/discover/other/hello-world/123?test=true")! ) // Three parameters: string & int & qs bool
 
 // MARK :- Examples: Invalid Routes
-Route.match("myapp://goto/homes")                 // Invalid path
-Route.match("myapp://goto/home/more")             // Additional path after valid url
-Route.match("myapp://goto/nested/someInt/one")    // Invalid int parameter
-Route.match("myapp://goto/nested/someBool/hello") // Invalid bool parameter
-Route.match("myapp://goto/optionalInt/string")    // String after nil Optional Int parameter
+Route.match("myapp://goto/homes")                           // Invalid path
+Route.match("myapp://goto/home/more")                       // Additional path after valid url
+Route.match("myapp://goto/article?theme=vip")               // Missing int parameter
+Route.match("myapp://goto/discover/programme/not-a-uuid")   // Invalid type for parameter
 
 print("")
 print("🦖", Date())
